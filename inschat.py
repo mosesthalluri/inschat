@@ -55,7 +55,7 @@ def build_index(chat_chunks):
     )
     embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
     Settings.embed_model = embed_model
-    Settings.llm = None  # <--- DISABLES OpenAI/model use, retrieval only!
+    Settings.llm = None  # or use a mock LLM if needed
     documents = [Document(text=chunk) for chunk in tqdm(chat_chunks, desc="Indexing chunks")]
     index = VectorStoreIndex.from_documents(
         documents,
@@ -72,7 +72,7 @@ def ask(index):
         if q.strip().lower() in ("exit", "quit"):
             break
         print("Retrieving answer, please wait ...")
-        res = index.as_query_engine(response_mode="compact", similarity_top_k=4)(q)
+        res = index.as_query_engine(response_mode="compact", similarity_top_k=4).query(q)
         print("\nReply:\n", res, "\n" + "-"*40)
 
 def main():
