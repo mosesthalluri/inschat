@@ -1,0 +1,6 @@
+# Ignore chat exports, database, and cache
+/output/
+/Chat/*.txt
+__pycache__/
+*.pyc
+*.pdf

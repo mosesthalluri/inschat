@@ -1,0 +1,8 @@
+beautifulsoup4
+reportlab
+lxml
+pytz
+llama-index
+chromadb
+tqdm
+rich
