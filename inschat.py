@@ -55,6 +55,7 @@ def build_index(chat_chunks):
     )
     embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
     Settings.embed_model = embed_model
+    Settings.llm = None  # <--- DISABLES OpenAI/model use, retrieval only!
     documents = [Document(text=chunk) for chunk in tqdm(chat_chunks, desc="Indexing chunks")]
     index = VectorStoreIndex.from_documents(
         documents,
