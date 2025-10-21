@@ -1,7 +1,7 @@
-from llama_index.core import VectorStoreIndex, ServiceContext
-from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core import VectorStoreIndex, Settings, Document
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
+import chromadb
 from tqdm import tqdm
 import os
 
@@ -30,7 +30,7 @@ def parse_chat_lines(chat_file):
 
 def chunk_entries(entries, max_len=1200):
     chunks, chunk, cur_len = [], [], 0
-    for entry in entries:
+    for entry in tqdm(entries, desc="Chunking messages"):
         line = f"[{entry['metadata']['timestamp']}] {entry['metadata']['sender']}: {entry['text']}\n"
         if cur_len + len(line) > max_len and chunk:
             chunks.append("".join(chunk))
@@ -42,15 +42,26 @@ def chunk_entries(entries, max_len=1200):
     return chunks
 
 def build_index(chat_chunks):
+    print(f"\nStarting embedding and index build for {len(chat_chunks)} chunks ...")
+    client = chromadb.PersistentClient(path=DB_DIR)
+    collection_name = "inschat"
+    try:
+        collection = client.get_collection(collection_name)
+    except Exception:
+        collection = client.create_collection(collection_name)
+    vector_store = ChromaVectorStore(
+        chroma_collection=collection,
+        client=client,
+    )
     embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vector_store = ChromaVectorStore(persist_dir=DB_DIR)
-    ctx = ServiceContext.from_defaults(embed_model=embed_model)
+    Settings.embed_model = embed_model
+    documents = [Document(text=chunk) for chunk in tqdm(chat_chunks, desc="Indexing chunks")]
     index = VectorStoreIndex.from_documents(
-        [{"text": chunk} for chunk in chat_chunks],
-        service_context=ctx,
+        documents,
+        settings=Settings,
         vector_store=vector_store
     )
-    index.storage_context.persist(persist_dir=DB_DIR)
+    print("Index build complete!")
     return index
 
 def ask(index):
@@ -59,6 +70,7 @@ def ask(index):
         q = input("You: ")
         if q.strip().lower() in ("exit", "quit"):
             break
+        print("Retrieving answer, please wait ...")
         res = index.as_query_engine(response_mode="compact", similarity_top_k=4)(q)
         print("\nReply:\n", res, "\n" + "-"*40)
 
